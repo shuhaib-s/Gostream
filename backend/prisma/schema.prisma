@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String?   // User's display name (optional for backward compatibility)
+  passwordHash String?   // Optional for Google OAuth users
+  googleId     String?   @unique // Google OAuth ID
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  projects     Project[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  streamKey   String        @unique @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  streams     Stream[]
+  destinations Destination[]
+
+  @@map("projects")
+}
+
+model Stream {
+  id        String    @id @default(uuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status    String    @default("live") // live, ended
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@map("streams")
+}
+
+model Destination {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  platform  String   // youtube, twitch, facebook, custom
+  name      String
+  rtmpUrl   String
+  streamKey String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("destinations")
+}
+
+
