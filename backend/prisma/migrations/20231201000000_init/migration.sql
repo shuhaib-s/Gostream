@@ -63,3 +63,4 @@ ALTER TABLE "streams" ADD CONSTRAINT "streams_projectId_fkey" FOREIGN KEY ("proj
 ALTER TABLE "destinations" ADD CONSTRAINT "destinations_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
+

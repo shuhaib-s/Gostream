@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: streambridge-postgres
+    container_name: gostream-postgres
     env_file:
       - .env
     environment:
@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - streambridge-network
+      - gostream-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -26,7 +26,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: streambridge-backend
+    container_name: gostream-backend
     env_file:
       - .env
     environment:
@@ -45,14 +45,14 @@ services:
       - ../backend/src:/app/src
       - ../backend/prisma:/app/prisma
     networks:
-      - streambridge-network
+      - gostream-network
     command: sh -c "npx prisma migrate deploy && npm run dev"
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
-    container_name: streambridge-frontend
+    container_name: gostream-frontend
     env_file:
       - .env
     environment:
@@ -69,11 +69,11 @@ services:
       - ../frontend/components:/app/components
       - ../frontend/lib:/app/lib
     networks:
-      - streambridge-network
+      - gostream-network
 
   nginx-rtmp:
     image: tiangolo/nginx-rtmp
-    container_name: streambridge-nginx-rtmp
+    container_name: gostream-nginx-rtmp
     env_file:
       - .env
     ports:
@@ -85,13 +85,13 @@ services:
     depends_on:
       - backend
     networks:
-      - streambridge-network
+      - gostream-network
 
 volumes:
   postgres_data:
   rtmp_hls:
 
 networks:
-  streambridge-network:
+  gostream-network:
     driver: bridge
 

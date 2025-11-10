@@ -1,6 +1,6 @@
 # Local Development Setup Guide
 
-Complete guide to run StreamBridge locally for development.
+Complete guide to run GoStream locally for development.
 
 ---
 
@@ -62,10 +62,10 @@ You need **2 Docker containers** running:
 
 ```bash
 docker run -d \
-  --name streambridge-postgres \
-  -e POSTGRES_USER=streambridge \
-  -e POSTGRES_PASSWORD=streambridge_secret_2024 \
-  -e POSTGRES_DB=streambridge \
+  --name gostream-postgres \
+  -e POSTGRES_USER=gostream \
+  -e POSTGRES_PASSWORD=gostream_secret_2024 \
+  -e POSTGRES_DB=gostream \
   -p 5432:5432 \
   postgres:15-alpine
 ```
@@ -73,13 +73,13 @@ docker run -d \
 **What this does:**
 - Creates PostgreSQL database container
 - Exposes port 5432 on your machine
-- Database name: `streambridge`
-- Username: `streambridge`
-- Password: `streambridge_secret_2024`
+- Database name: `gostream`
+- Username: `gostream`
+- Password: `gostream_secret_2024`
 
 **Verify it's running:**
 ```bash
-docker ps | grep streambridge-postgres
+docker ps | grep gostream-postgres
 ```
 
 Should show the container as "Up".
@@ -90,7 +90,7 @@ Should show the container as "Up".
 
 ```bash
 docker run -d \
-  --name streambridge-nginx-rtmp \
+  --name gostream-nginx-rtmp \
   -p 1935:1935 \
   -p 8080:8080 \
   -v $(pwd)/infra/nginx-rtmp/nginx.conf:/etc/nginx/nginx.conf \
@@ -105,7 +105,7 @@ docker run -d \
 
 **Verify it's running:**
 ```bash
-docker ps | grep streambridge-nginx-rtmp
+docker ps | grep gostream-nginx-rtmp
 ```
 
 Should show the container as "Up".
@@ -135,7 +135,7 @@ npm run dev
 **You should see:**
 ```
 ═══════════════════════════════════════════════════════════
-🚀 StreamBridge Backend Starting...
+🚀 GoStream Backend Starting...
 ═══════════════════════════════════════════════════════════
 
 📋 Environment Configuration:
@@ -146,7 +146,7 @@ npm run dev
    Length: 64 characters
 
 ✅ DATABASE_URL: Loaded
-   postgresql://streambridge:***@localhost:5432/streambridge
+   postgresql://gostream:***@localhost:5432/gostream
 
 🔌 Testing database connection...
 ✅ Database: Connected successfully
@@ -200,8 +200,8 @@ npm run dev
 docker ps
 
 # Should show:
-# - streambridge-postgres (port 5432)
-# - streambridge-nginx-rtmp (ports 1935, 8080)
+# - gostream-postgres (port 5432)
+# - gostream-nginx-rtmp (ports 1935, 8080)
 
 # Check backend
 curl http://localhost:4000/health
@@ -243,7 +243,7 @@ Terminal 2: Frontend
   (Shows frontend logs)
 
 Terminal 3: Commands
-  $ docker logs -f streambridge-nginx-rtmp
+  $ docker logs -f gostream-nginx-rtmp
   (View RTMP logs, run other commands)
 ```
 
@@ -258,8 +258,8 @@ Terminal 3: Commands
 docker ps
 
 # If not running, start them:
-docker start streambridge-postgres
-docker start streambridge-nginx-rtmp
+docker start gostream-postgres
+docker start gostream-nginx-rtmp
 
 # 2. Start backend (terminal 1)
 cd backend
@@ -280,8 +280,8 @@ open http://localhost:3000
 # 2. Stop frontend: Ctrl+C in terminal 2
 
 # 3. (Optional) Stop Docker containers
-docker stop streambridge-postgres
-docker stop streambridge-nginx-rtmp
+docker stop gostream-postgres
+docker stop gostream-nginx-rtmp
 ```
 
 ---
@@ -295,28 +295,28 @@ docker stop streambridge-nginx-rtmp
 docker ps
 
 # View logs
-docker logs streambridge-postgres
-docker logs streambridge-nginx-rtmp
+docker logs gostream-postgres
+docker logs gostream-nginx-rtmp
 
 # Follow logs (real-time)
-docker logs -f streambridge-nginx-rtmp
+docker logs -f gostream-nginx-rtmp
 
 # Restart containers
-docker restart streambridge-postgres
-docker restart streambridge-nginx-rtmp
+docker restart gostream-postgres
+docker restart gostream-nginx-rtmp
 
 # Stop containers
-docker stop streambridge-postgres streambridge-nginx-rtmp
+docker stop gostream-postgres gostream-nginx-rtmp
 
 # Remove containers (data will be lost!)
-docker rm streambridge-postgres streambridge-nginx-rtmp
+docker rm gostream-postgres gostream-nginx-rtmp
 ```
 
 ### Database Commands
 
 ```bash
 # Connect to database
-docker exec -it streambridge-postgres psql -U streambridge -d streambridge
+docker exec -it gostream-postgres psql -U gostream -d gostream
 
 # Inside psql:
 \dt                    # List tables
@@ -382,7 +382,7 @@ rm -rf .next
 docker ps | grep postgres
 
 # If not running, start it
-docker start streambridge-postgres
+docker start gostream-postgres
 
 # If doesn't exist, create it (see Step 3)
 ```
@@ -446,8 +446,8 @@ open -a Docker
 
 ```bash
 # Remove existing container
-docker rm streambridge-postgres
-docker rm streambridge-nginx-rtmp
+docker rm gostream-postgres
+docker rm gostream-nginx-rtmp
 
 # Then create again (see Step 3)
 ```
@@ -492,7 +492,7 @@ brew services stop postgresql
 
 5. Restart Nginx:
    ```bash
-   docker restart streambridge-nginx-rtmp
+   docker restart gostream-nginx-rtmp
    ```
 
 **Stream preview not showing**
@@ -502,7 +502,7 @@ brew services stop postgresql
 3. Check OBS is streaming (green indicator)
 4. Check HLS files exist:
    ```bash
-   docker exec streambridge-nginx-rtmp ls -lah /tmp/hls
+   docker exec gostream-nginx-rtmp ls -lah /tmp/hls
    ```
 
 ---
@@ -581,8 +581,8 @@ brew services stop postgresql
 # Frontend: Ctrl+C
 
 # 2. Remove Docker containers
-docker stop streambridge-postgres streambridge-nginx-rtmp
-docker rm streambridge-postgres streambridge-nginx-rtmp
+docker stop gostream-postgres gostream-nginx-rtmp
+docker rm gostream-postgres gostream-nginx-rtmp
 
 # 3. Remove node_modules (optional)
 rm -rf backend/node_modules frontend/node_modules
@@ -593,4 +593,5 @@ rm -rf backend/node_modules frontend/node_modules
 ---
 
 **You're all set for local development! Happy coding! 🚀**
+
 

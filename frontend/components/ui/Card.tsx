@@ -63,3 +63,4 @@ export const CardFooter: React.FC<CardFooterProps> = ({ children, className = ''
   return <div className={`mt-4 pt-4 border-t border-dark-border-primary ${className}`}>{children}</div>;
 };
 
+

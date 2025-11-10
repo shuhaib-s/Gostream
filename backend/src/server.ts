@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import app from './app';
 import config from './config';
 import { connectDatabase, disconnectDatabase } from './config/database';
@@ -21,7 +22,7 @@ const PORT = config.port;
  */
 function displayStartupBanner(): void {
   logger.info('═══════════════════════════════════════════════════════════');
-  logger.info('🚀 StreamBridge Backend Starting...');
+  logger.info('🚀 GoStream Backend Starting...');
   logger.info('═══════════════════════════════════════════════════════════');
   logger.info('Environment Configuration', {
     NODE_ENV: config.env,
@@ -29,6 +30,23 @@ function displayStartupBanner(): void {
     JWT_EXPIRES_IN: config.jwt.expiresIn,
     BCRYPT_ROUNDS: config.bcrypt.saltRounds,
   });
+}
+
+/**
+ * Run database migrations automatically
+ */
+async function runMigrations(): Promise<void> {
+  try {
+    logger.info('🔄 Running database migrations...');
+    execSync('npx prisma migrate deploy', { 
+      stdio: 'inherit',
+      env: { ...process.env }
+    });
+    logger.info('✅ Database migrations completed');
+  } catch (error) {
+    logger.error('❌ Migration failed!', error as Error);
+    throw error;
+  }
 }
 
 /**
@@ -42,13 +60,17 @@ async function startServer(): Promise<void> {
     logger.info('🔌 Connecting to database...');
     await connectDatabase();
 
+    // Run migrations automatically
+    await runMigrations();
+
     // Start HTTP server
-    app.listen(PORT, () => {
+    // Bind to 0.0.0.0 to accept connections from outside container
+    app.listen(PORT, '0.0.0.0', () => {
       logger.info('═══════════════════════════════════════════════════════════');
       logger.info('✅ Server Ready!');
       logger.info('═══════════════════════════════════════════════════════════');
-      logger.info(`🌐 Server running on: http://localhost:${PORT}`);
-      logger.info(`📡 Health check: http://localhost:${PORT}/health`);
+      logger.info(`🌐 Server running on: http://0.0.0.0:${PORT}`);
+      logger.info(`📡 Health check: http://0.0.0.0:${PORT}/health`);
       logger.info('');
       logger.info('📚 Available endpoints:');
       logger.info('   POST   /api/auth/signup');

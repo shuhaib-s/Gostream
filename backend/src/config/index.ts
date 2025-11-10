@@ -50,7 +50,7 @@ const getDatabaseUrl = (): string => {
     DB_PORT = '5432',
     DB_USER = 'postgres',
     DB_PASSWORD = '',
-    DB_NAME = 'streambridge',
+    DB_NAME = 'gostream',
   } = process.env;
 
   if (!DB_PASSWORD) {

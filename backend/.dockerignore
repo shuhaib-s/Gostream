@@ -39,5 +39,3 @@
 # Temporary files
 **/tmp
 **/temp
-
-fly.toml

@@ -1,4 +1,4 @@
-# StreamBridge - Multi-Streaming Platform
+# GoStream - Multi-Streaming Platform
 
 Stream to multiple platforms (YouTube, Twitch, Facebook) simultaneously from a single source.
 
@@ -17,16 +17,16 @@ Stream to multiple platforms (YouTube, Twitch, Facebook) simultaneously from a s
 ```bash
 # Start PostgreSQL
 docker run -d \
-  --name streambridge-postgres \
-  -e POSTGRES_USER=streambridge \
-  -e POSTGRES_PASSWORD=streambridge_secret_2024 \
-  -e POSTGRES_DB=streambridge \
+  --name gostream-postgres \
+  -e POSTGRES_USER=gostream \
+  -e POSTGRES_PASSWORD=gostream_secret_2024 \
+  -e POSTGRES_DB=gostream \
   -p 5432:5432 \
   postgres:15-alpine
 
 # Start Nginx-RTMP
 docker run -d \
-  --name streambridge-nginx-rtmp \
+  --name gostream-nginx-rtmp \
   -p 1935:1935 \
   -p 8080:8080 \
   -v $(pwd)/infra/nginx-rtmp/nginx.conf:/etc/nginx/nginx.conf \
@@ -197,7 +197,7 @@ Verify DATABASE_URL in `backend/.env`
 1. Make sure backend is running
 2. Verify stream key is correct
 3. Check nginx config uses `host.docker.internal` for local dev
-4. Restart nginx: `docker restart streambridge-nginx-rtmp`
+4. Restart nginx: `docker restart gostream-nginx-rtmp`
 
 ### Preview not showing
 
@@ -211,12 +211,12 @@ Verify DATABASE_URL in `backend/.env`
 
 ```bash
 # Stop containers
-docker stop streambridge-postgres
-docker stop streambridge-nginx-rtmp
+docker stop gostream-postgres
+docker stop gostream-nginx-rtmp
 
 # Remove containers
-docker rm streambridge-postgres
-docker rm streambridge-nginx-rtmp
+docker rm gostream-postgres
+docker rm gostream-nginx-rtmp
 
 # Stop backend and frontend: Ctrl+C in terminals
 ```
@@ -227,7 +227,7 @@ docker rm streambridge-nginx-rtmp
 
 ### Backend (.env)
 ```env
-DATABASE_URL=postgresql://streambridge:streambridge_secret_2024@localhost:5432/streambridge
+DATABASE_URL=postgresql://gostream:gostream_secret_2024@localhost:5432/gostream
 JWT_SECRET=your-secret-key
 PORT=4000
 NODE_ENV=development
@@ -238,6 +238,36 @@ NODE_ENV=development
 NEXT_PUBLIC_API_URL=http://localhost:4000
 NEXT_PUBLIC_HLS_URL=http://localhost:8080/hls
 ```
+
+---
+
+## 🚢 CI/CD & Docker Hub
+
+This project includes automated CI/CD using GitHub Actions to build and push Docker images to Docker Hub.
+
+### Quick Setup
+
+1. **Create Docker Hub Access Token**
+   - Go to Docker Hub → Account Settings → Security
+   - Create a new access token
+
+2. **Add GitHub Secrets**
+   - Go to your repo → Settings → Secrets and variables → Actions
+   - Add `DOCKER_HUB_USERNAME` (your Docker Hub username)
+   - Add `DOCKER_HUB_TOKEN` (the access token you created)
+
+3. **Push to GitHub**
+   - Images are automatically built and pushed on push to `main`/`master`
+   - Images are tagged with `latest`, branch name, and version tags
+
+📖 **Full CI/CD Setup Guide**: See [.github/CI_CD_SETUP.md](.github/CI_CD_SETUP.md)
+
+### Docker Images
+
+Images are available on Docker Hub as:
+- `your-username/gostream-backend`
+- `your-username/gostream-frontend`
+- `your-username/gostream-nginx-rtmp`
 
 ---
 

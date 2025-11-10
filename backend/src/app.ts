@@ -25,6 +25,16 @@ import { requestLogger } from './middlewares/requestLogger';
 
 const app = express();
 
+// Health check endpoint - MUST be before all middleware (for container health checks)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.env,
+  });
+});
+
 // Security headers with Helmet
 app.use(helmet({
   contentSecurityPolicy: {
@@ -45,6 +55,8 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip health check from rate limiting
+  skip: (req) => req.path === '/health',
 });
 
 // Apply rate limiter to all routes
@@ -108,16 +120,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging (for production monitoring)
 app.use(requestLogger);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: config.env,
-  });
-});
 
 // API Routes
 app.use('/api/auth', authLimiter, authRoutes);

@@ -29,7 +29,7 @@ class Logger {
   private readonly serviceName: string;
   private readonly enableColors: boolean;
 
-  constructor(serviceName: string = 'StreamBridge', enableColors: boolean = true) {
+  constructor(serviceName: string = 'GoStream', enableColors: boolean = true) {
     this.serviceName = serviceName;
     this.enableColors = enableColors && process.stdout.isTTY;
   }
@@ -175,7 +175,8 @@ class Logger {
 }
 
 // Export singleton instance
-const logger = new Logger('StreamBridge');
+const logger = new Logger('GoStream');
 
 export default logger;
+
 

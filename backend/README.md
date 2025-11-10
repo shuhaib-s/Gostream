@@ -1,8 +1,8 @@
-# StreamBridge Backend
+# GoStream Backend
 
 ## 🎯 Overview
 
-Production-ready Node.js/Express backend for StreamBridge, designed to handle **1000+ concurrent users** with enterprise-grade architecture, security, and scalability.
+Production-ready Node.js/Express backend for GoStream, designed to handle **1000+ concurrent users** with enterprise-grade architecture, security, and scalability.
 
 ## ✨ Features
 
@@ -94,9 +94,9 @@ DATABASE_URL=postgresql://user:password@host:port/database
 # Database (Option 2: Individual components)
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=streambridge
+DB_USER=gostream
 DB_PASSWORD=your_password
-DB_NAME=streambridge
+DB_NAME=gostream
 
 # JWT Secret (MUST be changed in production!)
 JWT_SECRET=your_secure_random_string_32_chars_or_more
@@ -176,7 +176,7 @@ logger.http('GET', '/api/users', 200, 45); // 45ms response time
 
 **Output**:
 ```
-[2025-11-09T10:30:45.123Z] [INFO] [StreamBridge] User created {"userId":"123","email":"user@example.com"}
+[2025-11-09T10:30:45.123Z] [INFO] [GoStream] User created {"userId":"123","email":"user@example.com"}
 ```
 
 ### 3. Custom Error Classes
@@ -264,8 +264,8 @@ npm run lint
 All requests, database queries, and errors are logged with timestamps:
 
 ```
-[2025-11-09T10:30:45.123Z] [INFO] [StreamBridge] HTTP GET /api/projects 200 {"duration":"45ms"}
-[2025-11-09T10:30:45.200Z] [DEBUG] [StreamBridge] Database FIND_BY_USER_ID on Project
+[2025-11-09T10:30:45.123Z] [INFO] [GoStream] HTTP GET /api/projects 200 {"duration":"45ms"}
+[2025-11-09T10:30:45.200Z] [DEBUG] [GoStream] Database FIND_BY_USER_ID on Project
 ```
 
 ### Recommended Production Monitoring
@@ -280,8 +280,8 @@ All requests, database queries, and errors are logged with timestamps:
 
 ```dockerfile
 # Production Dockerfile included
-docker build -t streambridge-backend .
-docker run -p 4000:4000 --env-file .env streambridge-backend
+docker build -t gostream-backend .
+docker run -p 4000:4000 --env-file .env gostream-backend
 ```
 
 ## 🔄 Database Migrations
@@ -398,4 +398,5 @@ MIT License - See LICENSE file for details
 ---
 
 **Built with** ❤️ **for production-scale streaming**
+
 

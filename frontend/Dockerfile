@@ -19,16 +19,20 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy built files
+# Copy built files from standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
+
+# Note: Public directory is not needed - Next.js standalone build includes
+# static assets in .next/static. If you add a public/ folder later, uncomment:
+# COPY --from=builder /app/public ./public
 
 # Expose port
 EXPOSE 3000
 
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Start the application
 CMD ["node", "server.js"]

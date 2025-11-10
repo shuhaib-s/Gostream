@@ -1,4 +1,4 @@
-# StreamBridge - System Architecture & Data Flow
+# GoStream - System Architecture & Data Flow
 
 ## 🏗️ System Architecture Diagram
 

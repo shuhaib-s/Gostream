@@ -1,0 +1,97 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: gostream-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gostream}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gostream_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-gostream}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gostream-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gostream} -d ${POSTGRES_DB:-gostream}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gostream-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gostream}:${POSTGRES_PASSWORD:-gostream_secret_2024}@postgres:5432/${POSTGRES_DB:-gostream}
+      JWT_SECRET: ${JWT_SECRET:-4f8a5c2e9b1d6f3a7e0c8b4a2d9f6e1c3b7a5d8f2e6c9b3a1f7d4e8c2b5a9f6e3}
+      COOKIE_SECRET: ${COOKIE_SECRET:-4f8a5c2e9b1d6f3a7e0c8b4a2d9f6e1c3b7a5d8f2e6c9b3a1f7d4e8c2b5a9f6e3}
+      PORT: ${BACKEND_PORT:-4000}
+      NODE_ENV: ${NODE_ENV:-production}
+      # CORS: Allow frontend origin (used by browser)
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "${BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gostream-network
+    restart: unless-stopped
+    # Migrations run automatically in server.ts
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gostream-frontend
+    env_file:
+      - .env
+    environment:
+      # Use HOST_IP if set, otherwise localhost (for browser access)
+      # These URLs are used by the browser, so they need to be accessible from host machine
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_PUBLIC_HLS_URL: ${NEXT_PUBLIC_HLS_URL:-http://localhost:8080/hls}
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    networks:
+      - gostream-network
+    restart: unless-stopped
+
+  # RTMP Server (Nginx-RTMP)
+  rtmp:
+    build:
+      context: ./infra/nginx-rtmp
+      dockerfile: Dockerfile
+    container_name: gostream-rtmp
+    ports:
+      - "${RTMP_PORT:-1935}:1935"  # RTMP port
+      - "${HLS_PORT:-8080}:8080"   # HLS HTTP port
+    volumes:
+      - rtmp_hls:/tmp/hls
+    depends_on:
+      - backend
+    networks:
+      - gostream-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  rtmp_hls:
+    driver: local
+
+networks:
+  gostream-network:
+    driver: bridge
+

@@ -28,3 +28,4 @@ router.delete('/destinations/:id', deleteDestination);
 export default router;
 
 
+

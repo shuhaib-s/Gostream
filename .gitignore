@@ -13,6 +13,7 @@ frontend/.env.local
 
 # Keep example files (no secrets)
 !env.example
+!sample.env
 !backend/env.example
 !frontend/env.example
 !infra/env.example

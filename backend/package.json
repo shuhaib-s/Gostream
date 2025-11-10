@@ -1,7 +1,7 @@
 {
-  "name": "streambridge-backend",
+  "name": "gostream-backend",
   "version": "1.0.0",
-  "description": "StreamBridge Backend API",
+  "description": "GoStream Backend API",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -45,3 +45,4 @@
     "typescript": "^5.3.3"
   }
 }
+

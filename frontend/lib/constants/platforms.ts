@@ -182,3 +182,4 @@ export const getPlatformsByCategory = (category: string): PlatformConfig[] => {
   return Object.values(STREAMING_PLATFORMS).filter(p => p.category === category);
 };
 
+
