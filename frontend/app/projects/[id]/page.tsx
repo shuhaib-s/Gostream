@@ -7,6 +7,7 @@ import { Button, Card, CardHeader, Modal, ModalFooter, Input, Select, Badge } fr
 import { PlatformSelector } from '@/components/PlatformSelector';
 import { PlatformLogo } from '@/components/PlatformLogos';
 import HLSPlayer from '@/components/HLSPlayer';
+import { AlertDialog } from '@/components/AlertDialog';
 import { 
   getPlatformConfig, 
   PlatformConfig, 
@@ -39,6 +40,13 @@ export default function ProjectDetailPage() {
   const [expandedDestinations, setExpandedDestinations] = useState<Record<string, boolean>>({});
   const [isStreamingAll, setIsStreamingAll] = useState(false);
   const [startingAll, setStartingAll] = useState(false);
+  const [useStartAllMode, setUseStartAllMode] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; destinationId: string | null; destinationName: string | null }>({
+    isOpen: false,
+    destinationId: null,
+    destinationName: null,
+  });
+  const [deleting, setDeleting] = useState(false);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -106,6 +114,12 @@ export default function ProjectDetailPage() {
     try {
       const data = await projects.get(projectId);
       setProject(data);
+      
+      // Sync streaming status with backend
+      if (data.destinations && data.destinations.length > 0) {
+        await syncStreamingStatus(data.destinations);
+      }
+      
       setLoading(false);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -114,6 +128,47 @@ export default function ProjectDetailPage() {
         setError('Failed to load project');
         setLoading(false);
       }
+    }
+  };
+
+  const syncStreamingStatus = async (destinations: Destination[]) => {
+    try {
+      // Check status for all destinations in parallel
+      const statusPromises = destinations.map(async (dest) => {
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/destinations/${dest.id}/relay/status`,
+            {
+              method: 'GET',
+              credentials: 'include',
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            return { id: dest.id, isRunning: data.data?.isRunning || false };
+          }
+          return { id: dest.id, isRunning: false };
+        } catch {
+          return { id: dest.id, isRunning: false };
+        }
+      });
+
+      const statuses = await Promise.all(statusPromises);
+      const newStreamingStatus: Record<string, boolean> = {};
+      let anyStreaming = false;
+
+      statuses.forEach((status) => {
+        if (status.isRunning) {
+          newStreamingStatus[status.id] = true;
+          anyStreaming = true;
+        }
+      });
+
+      setStreamingDestinations(newStreamingStatus);
+      setIsStreamingAll(anyStreaming);
+    } catch (err) {
+      console.error('Failed to sync streaming status:', err);
     }
   };
 
@@ -169,14 +224,28 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleDeleteDestination = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this destination?')) return;
+  const handleDeleteDestination = (id: string) => {
+    const destination = project?.destinations?.find(d => d.id === id);
+    setDeleteDialog({
+      isOpen: true,
+      destinationId: id,
+      destinationName: destination?.name || null,
+    });
+  };
+
+  const confirmDeleteDestination = async () => {
+    if (!deleteDialog.destinationId) return;
 
     try {
-      await destinations.delete(id);
+      setDeleting(true);
+      await destinations.delete(deleteDialog.destinationId);
+      setDeleteDialog({ isOpen: false, destinationId: null, destinationName: null });
       loadProject();
     } catch (err: any) {
       setError('Failed to delete destination');
+      setDeleting(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -208,13 +277,20 @@ export default function ProjectDetailPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to start stream');
+        const data = await response.json().catch(() => ({}));
+        const errorMessage = data.error || data.message || `Failed to start stream to ${dest.name}`;
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
       setStreamingDestinations(prev => ({ ...prev, [dest.id]: true }));
+      
+      // Reload project to get updated status
+      await loadProject();
     } catch (err: any) {
-      setError(err.message || 'Failed to start stream');
+      const errorMessage = err.message || `Failed to start stream to ${dest.name}`;
+      setError(errorMessage);
+      console.error('Start stream error:', err);
     } finally {
       setStartingStream(prev => ({ ...prev, [dest.id]: false }));
     }
@@ -234,13 +310,19 @@ export default function ProjectDetailPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to stop stream');
+        const data = await response.json().catch(() => ({}));
+        const errorMessage = data.error || data.message || `Failed to stop stream to ${dest.name}`;
+        throw new Error(errorMessage);
       }
 
       setStreamingDestinations(prev => ({ ...prev, [dest.id]: false }));
+      
+      // Reload project to get updated status
+      await loadProject();
     } catch (err: any) {
-      setError(err.message || 'Failed to stop stream');
+      const errorMessage = err.message || `Failed to stop stream to ${dest.name}`;
+      setError(errorMessage);
+      console.error('Stop stream error:', err);
     } finally {
       setStartingStream(prev => ({ ...prev, [dest.id]: false }));
     }
@@ -292,11 +374,15 @@ export default function ProjectDetailPage() {
       // Check if any failed
       const failures = results.filter(r => r.status === 'rejected');
       if (failures.length > 0) {
-        const failedReasons = failures.map((r: any) => r.reason.message).join(', ');
+        const failedReasons = failures.map((r: any) => r.reason?.message || 'Unknown error').join(', ');
         setError(`Some streams failed: ${failedReasons}`);
+      } else {
+        // Reload project to get updated status
+        await loadProject();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to start streams');
+      console.error('Start all streams error:', err);
     } finally {
       setStartingAll(false);
     }
@@ -325,8 +411,12 @@ export default function ProjectDetailPage() {
       // Clear all streaming status
       setStreamingDestinations({});
       setIsStreamingAll(false);
+      
+      // Reload project to get updated status
+      await loadProject();
     } catch (err: any) {
       setError(err.message || 'Failed to stop streams');
+      console.error('Stop all streams error:', err);
     } finally {
       setStartingAll(false);
     }
@@ -570,37 +660,67 @@ export default function ProjectDetailPage() {
               </div>
 
               <div className="p-6">
-                {/* Start/Stop All Button */}
+                {/* Toggle and Start/Stop All Button */}
                 {hasEnabledDestinations && isLive && (
-                  <div className="mb-6">
-                    {isStreamingAll ? (
-                      <Button
-                        onClick={handleStopAllStreams}
-                        loading={startingAll}
-                        fullWidth
-                        size="lg"
-                        className="backdrop-blur-xl bg-red-500/20 border-2 border-red-500/50 text-red-300 hover:bg-red-500/30 shadow-xl"
-                      >
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                  <div className="mb-6 space-y-3">
+                    {/* Toggle Switch */}
+                    <div className="flex items-center justify-between backdrop-blur-xl bg-white/5 rounded-xl border border-white/10 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
-                        Stop All Streams
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handleStartAllStreams}
-                        loading={startingAll}
-                        fullWidth
-                        size="lg"
-                        className="bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-600 hover:via-green-600 hover:to-emerald-700 text-white border-0 shadow-2xl shadow-emerald-500/50"
+                        <div>
+                          <p className="text-sm font-medium text-white">Start All Mode</p>
+                          <p className="text-xs text-white/60">Control all streams at once</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setUseStartAllMode(!useStartAllMode)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                          useStartAllMode ? 'bg-emerald-500' : 'bg-gray-600'
+                        }`}
                       >
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Start All Streams
-                      </Button>
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            useStartAllMode ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Start/Stop All Button - Only show when toggle is ON */}
+                    {useStartAllMode && (
+                      <>
+                        {isStreamingAll ? (
+                          <Button
+                            onClick={handleStopAllStreams}
+                            loading={startingAll}
+                            fullWidth
+                            size="lg"
+                            className="backdrop-blur-xl bg-red-500/20 border-2 border-red-500/50 text-red-300 hover:bg-red-500/30 shadow-xl"
+                          >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                            </svg>
+                            Stop All Streams
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={handleStartAllStreams}
+                            loading={startingAll}
+                            fullWidth
+                            size="lg"
+                            className="bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-600 hover:via-green-600 hover:to-emerald-700 text-white border-0 shadow-2xl shadow-emerald-500/50"
+                          >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Start All Streams
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -654,8 +774,8 @@ export default function ProjectDetailPage() {
                               </div>
                               
                               <div className="flex items-center gap-2 ml-4">
-                                {/* Individual Start/Stop Button - Only show if NOT using Start All */}
-                                {!isStreamingAll && (
+                                {/* Individual Start/Stop Button - Only show if toggle is OFF */}
+                                {!useStartAllMode && (
                                   <>
                                     {isStreaming ? (
                                       <Button
@@ -850,6 +970,19 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Destination Confirmation Dialog */}
+      <AlertDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, destinationId: null, destinationName: null })}
+        onConfirm={confirmDeleteDestination}
+        title="Delete Destination"
+        description={`Are you sure you want to delete "${deleteDialog.destinationName || 'this destination'}"? This action cannot be undone.`}
+        confirmText="Delete Destination"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
 
       {/* Add Destination Modal */}
       <Modal

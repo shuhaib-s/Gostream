@@ -56,11 +56,11 @@ async function startServer(): Promise<void> {
   try {
     displayStartupBanner();
 
-    // Connect to database
+    // Connect to database (just verify connection, don't check tables yet)
     logger.info('🔌 Connecting to database...');
-    await connectDatabase();
+    await connectDatabase(false); // Don't verify tables - migrations will create them
 
-    // Run migrations automatically
+    // Run migrations automatically (creates tables if they don't exist)
     await runMigrations();
 
     // Start HTTP server

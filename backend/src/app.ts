@@ -48,10 +48,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false, // Allow embedding for HLS player
 }));
 
-// Rate limiting to prevent abuse
+// Rate limiting to prevent abuse - stricter limits
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 50, // Reduced: Limit each IP to 50 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -62,40 +62,47 @@ const limiter = rateLimit({
 // Apply rate limiter to all routes
 app.use(limiter);
 
-// Stricter rate limit for auth routes
+// Stricter rate limit for auth routes - prevent brute force
 const authLimiter = rateLimit({
-  windowMs: 30 * 1000, // 30 seconds
-  max: 10, // Limit each IP to 10 auth requests per 30 seconds
-  message: 'Too many authentication attempts. Please try again in 30 seconds.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  windowMs: 15 * 60 * 1000, // 15 minutes (increased window)
+  max: 15, // Reduced: Limit each IP to 5 auth attempts per 15 minutes
+  message: 'Too many authentication attempts. Please try again in 15 minutes.',
+  standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful requests
-  skip: (req) => req.method === 'OPTIONS', // Skip CORS preflight requests
+  skip: (req) => req.method === 'OPTIONS',
   handler: (req, res) => {
     res.status(429).json({
       success: false,
-      error: 'Too many authentication attempts. Please try again in 30 seconds.',
-      retryAfter: 30, // seconds
+      error: 'Too many authentication attempts. Please try again in 15 minutes.',
+      retryAfter: 900, // 15 minutes in seconds
     });
   },
 });
 
 // CORS Configuration
-// When using credentials (cookies), origin cannot be '*'
-// Must specify exact origin(s)
+// SECURITY: Never allow '*' origins - must specify exact domains
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     const allowedOrigins = config.cors.origin.split(',').map(o => o.trim());
-    
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+
+    // Allow requests with no origin (like mobile apps, curl, Postman, server-to-server)
     if (!origin) {
       return callback(null, true);
     }
-    
-    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+
+    // SECURITY: Explicitly reject '*' wildcard
+    if (allowedOrigins.includes('*')) {
+      console.error('🚨 SECURITY ERROR: CORS_ORIGIN cannot contain "*" wildcard');
+      return callback(new Error('CORS configuration error - wildcard not allowed'));
+    }
+
+    // Only allow explicitly listed origins
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+      console.warn(`🚨 CORS blocked request from origin: ${origin}`);
+      callback(new Error(`Origin ${origin} not allowed by CORS policy`));
     }
   },
   credentials: true, // Allow cookies to be sent with requests

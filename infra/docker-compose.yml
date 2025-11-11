@@ -1,95 +1,94 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: gostream-postgres
-    env_file:
-      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-gostream}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gostream_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-gostream}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - gostream-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gostream} -d ${POSTGRES_DB:-gostream}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
+  # Backend API
   backend:
     build:
       context: ../backend
       dockerfile: Dockerfile
     container_name: gostream-backend
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: ${BACKEND_PORT}
-      NODE_ENV: ${NODE_ENV}
-      RTMP_SERVER_URL: ${RTMP_SERVER_URL:-rtmp://nginx-rtmp/live}
-      RTMP_PORT: ${RTMP_PORT}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gostream}:${POSTGRES_PASSWORD:-gostream_secret_2024}@postgres:5432/${POSTGRES_DB:-gostream}
+      JWT_SECRET: ${JWT_SECRET:-4f8a5c2e9b1d6f3a7e0c8b4a2d9f6e1c3b7a5d8f2e6c9b3a1f7d4e8c2b5a9f6e3}
+      COOKIE_SECRET: ${COOKIE_SECRET:-4f8a5c2e9b1d6f3a7e0c8b4a2d9f6e1c3b7a5d8f2e6c9b3a1f7d4e8c2b5a9f6e3}
+      PORT: ${BACKEND_PORT:-4000}
+      NODE_ENV: ${NODE_ENV:-production}
+      # CORS: Allow frontend origin (used by browser)
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "${BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ../backend/src:/app/src
-      - ../backend/prisma:/app/prisma
     networks:
       - gostream-network
-    command: sh -c "npx prisma migrate deploy && npm run dev"
+    restart: unless-stopped
+    # Migrations run automatically in server.ts
 
+  # Frontend (Next.js)
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
     container_name: gostream-frontend
-    env_file:
-      - .env
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NEXT_PUBLIC_RTMP_URL: ${NEXT_PUBLIC_RTMP_URL}
-      NEXT_PUBLIC_RTMP_PORT: ${NEXT_PUBLIC_RTMP_PORT}
-      NEXT_PUBLIC_HLS_URL: ${NEXT_PUBLIC_HLS_URL}
+      # Use HOST_IP if set, otherwise localhost (for browser access)
+      # These URLs are used by the browser, so they need to be accessible from host machine
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NEXT_PUBLIC_HLS_URL: ${NEXT_PUBLIC_HLS_URL:-http://localhost:8080/hls}
+      NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - backend
-    volumes:
-      - ../frontend/app:/app/app
-      - ../frontend/components:/app/components
-      - ../frontend/lib:/app/lib
     networks:
       - gostream-network
+    restart: unless-stopped
 
-  nginx-rtmp:
-    image: tiangolo/nginx-rtmp
-    container_name: gostream-nginx-rtmp
-    env_file:
-      - .env
+  # RTMP Server (Nginx-RTMP)
+  rtmp:
+    build:
+      context: ../nginx-rtmp
+      dockerfile: Dockerfile
+    container_name: gostream-rtmp
+    environment:
+      # Backend URL for webhooks
+      # Both RTMP and Backend are in Docker (same network) - use service name
+      # For local backend (not in Docker): use host.docker.internal (Mac/Windows) or host IP (Linux)
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:4000}
     ports:
-      - "${RTMP_PORT}:1935"  # RTMP
-      - "${HLS_PORT}:8080"   # HLS
+      - "${RTMP_PORT:-1935}:1935"  # RTMP port
+      - "${HLS_PORT:-8080}:8080"   # HLS HTTP port
     volumes:
-      - ./nginx-rtmp/nginx.conf:/etc/nginx/nginx.conf
       - rtmp_hls:/tmp/hls
-    depends_on:
-      - backend
     networks:
       - gostream-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+    driver: local
   rtmp_hls:
+    driver: local
 
 networks:
   gostream-network:

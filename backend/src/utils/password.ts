@@ -48,10 +48,31 @@ export const validatePasswordStrength = (password: string): { isValid: boolean; 
     };
   }
 
-  // Add more password rules as needed for production
-  // Example: require uppercase, lowercase, numbers, special characters
-  
+  // SECURITY: Enforce strong password requirements
+  const hasMinLength = password.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  const isValid = hasMinLength && hasUpperCase && hasLowerCase &&
+                  hasNumbers && hasSpecialChar;
+
+  if (!isValid) {
+    const requirements = [];
+    if (!hasUpperCase) requirements.push('uppercase letter');
+    if (!hasLowerCase) requirements.push('lowercase letter');
+    if (!hasNumbers) requirements.push('number');
+    if (!hasSpecialChar) requirements.push('special character (!@#$%^&*(),.?":{}|<>)');
+
+    return {
+      isValid: false,
+      message: `Password must contain at least one ${requirements.join(', ')}`,
+    };
+  }
+
   return { isValid: true };
 };
+
 
 

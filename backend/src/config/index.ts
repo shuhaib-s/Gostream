@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
+import logger from '../utils/logger';
 
+// Load .env file from backend directory
 dotenv.config();
+
 
 interface Config {
   env: string;
@@ -42,8 +45,10 @@ interface Config {
  */
 const getDatabaseUrl = (): string => {
   if (process.env.DATABASE_URL) {
+    logger.info('Database URL configured from environment variable');
     return process.env.DATABASE_URL;
   }
+
 
   const {
     DB_HOST = 'localhost',
@@ -54,29 +59,47 @@ const getDatabaseUrl = (): string => {
   } = process.env;
 
   if (!DB_PASSWORD) {
-    throw new Error('Database password is required (DB_PASSWORD or DATABASE_URL)');
+    console.error('❌ Database Configuration Error:');
+    console.error('   DB_PASSWORD is not set in environment variables');
+    console.error('   Options:');
+    console.error('   1. Set DATABASE_URL in .env file (recommended)');
+    console.error('   2. Set DB_PASSWORD in .env file');
+    console.error('   3. Set DB_PASSWORD as environment variable');
+    console.error('');
+    console.error('   Example .env file:');
+    console.error('   DATABASE_URL=postgresql://user:password@localhost:5432/gostream');
+    console.error('   OR');
+    console.error('   DB_PASSWORD=your_password_here');
+    throw new Error('Database password is required (DB_PASSWORD or DATABASE_URL must be set in .env file)');
   }
-
-  return `postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public`;
+  logger.info('Database URL constructed from individual components');
+  return `postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 };
 
 /**
  * Validates and returns JWT secret
- * In production, this must be a strong, random string
+ * Must be a strong, random string (minimum 32 characters)
  */
 const getJwtSecret = (): string => {
   const secret = process.env.JWT_SECRET;
-  
+
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('JWT_SECRET is required in production environment');
+      throw new Error('JWT_SECRET is required in production environment and must be at least 32 characters');
     }
-    console.warn('⚠️  WARNING: Using default JWT_SECRET. This is INSECURE for production!');
-    return 'default-dev-secret-change-in-production';
+    // Development only: allow default but warn loudly
+    console.error('🚨 SECURITY WARNING: Using default JWT_SECRET. This is INSECURE!');
+    console.error('🚨 Generate a secure secret: openssl rand -hex 32');
+    return 'dev-only-insecure-secret-change-immediately-in-production';
   }
 
   if (secret.length < 32) {
-    console.warn('⚠️  WARNING: JWT_SECRET should be at least 32 characters for security');
+    const errorMsg = `JWT_SECRET must be at least 32 characters for security. Current length: ${secret.length}`;
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(errorMsg);
+    }
+    console.error('🚨 SECURITY WARNING:', errorMsg);
+    console.error('🚨 Generate a secure secret: openssl rand -hex 32');
   }
 
   return secret;

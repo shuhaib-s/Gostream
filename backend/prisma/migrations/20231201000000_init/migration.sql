@@ -64,3 +64,4 @@ ALTER TABLE "destinations" ADD CONSTRAINT "destinations_projectId_fkey" FOREIGN 
 
 
 
+

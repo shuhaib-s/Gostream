@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import logger from '../utils/logger';
-
+import config from './index';
 /**
  * Singleton Prisma Client Instance
  * 
@@ -18,8 +18,9 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-const prismaClientSingleton = () => {
-  return new PrismaClient({
+const prismaClientSingleton = () => { 
+  process.env.DATABASE_URL = config.database.url;
+  return new PrismaClient({ 
     log: ['warn', 'error'],
   });
 };
@@ -32,16 +33,27 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * Connect to database and verify connection
+ * Connect to database and optionally verify tables exist
  */
-export const connectDatabase = async (): Promise<void> => {
+export const connectDatabase = async (verifyTables: boolean = true): Promise<void> => {
   try {
     await prisma.$connect();
     logger.info('Database connected successfully');
     
-    // Verify database tables exist
-    await prisma.$queryRaw`SELECT 1 FROM users LIMIT 1`;
-    logger.info('Database tables verified');
+    // Only verify tables if requested (skip on first connection before migrations)
+    if (verifyTables) {
+      try {
+        await prisma.$queryRaw`SELECT 1 FROM users LIMIT 1`;
+        logger.info('Database tables verified');
+      } catch (tableError: any) {
+        // If tables don't exist, that's okay - migrations will create them
+        if (tableError.code === 'P2010' || tableError.meta?.code === '42P01') {
+          logger.warn('Database tables not found - migrations will create them');
+        } else {
+          throw tableError;
+        }
+      }
+    }
   } catch (error) {
     logger.error('Database connection failed', { error });
     throw error;

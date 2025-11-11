@@ -58,7 +58,11 @@ export const startRelay = async (req: AuthRequest, res: Response, next: NextFunc
 
     // Build RTMP URLs
     const inputUrl = `${config.rtmp.serverUrl}/${destination.project.streamKey}`;
-    const outputUrl = `${destination.rtmpUrl}/${destination.streamKey}`;
+    // Handle RTMP URL construction - some URLs end with /, some don't
+    const rtmpBaseUrl = destination.rtmpUrl.endsWith('/') 
+      ? destination.rtmpUrl.slice(0, -1) 
+      : destination.rtmpUrl;
+    const outputUrl = `${rtmpBaseUrl}/${destination.streamKey}`;
 
     // Start relay
     const relay = await RelayService.startRelay({

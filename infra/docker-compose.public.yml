@@ -3,8 +3,6 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: gostream-postgres
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-gostream}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gostream_secret_2024}
@@ -24,9 +22,7 @@ services:
 
   # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: shuhaibs/gostream-backend:latest
     container_name: gostream-backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-gostream}:${POSTGRES_PASSWORD:-gostream_secret_2024}@postgres:5432/${POSTGRES_DB:-gostream}
@@ -34,29 +30,22 @@ services:
       COOKIE_SECRET: ${COOKIE_SECRET:-4f8a5c2e9b1d6f3a7e0c8b4a2d9f6e1c3b7a5d8f2e6c9b3a1f7d4e8c2b5a9f6e3}
       PORT: ${BACKEND_PORT:-4000}
       NODE_ENV: ${NODE_ENV:-production}
-      # CORS: Allow frontend origin (used by browser)
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      RTMP_SERVER_URL: ${RTMP_SERVER_URL:-rtmp://localhost:1935/live}
     ports:
-      - "${BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
+      - "${BACKEND_PORT:-4000}:4000"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gostream-network
     restart: unless-stopped
-    # Migrations run automatically in server.ts
 
   # Frontend (Next.js)
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: shuhaibs/gostream-frontend:latest
     container_name: gostream-frontend
-    env_file:
-      - .env
     environment:
-      # Use HOST_IP if set, otherwise localhost (for browser access)
-      # These URLs are used by the browser, so they need to be accessible from host machine
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
       NEXT_PUBLIC_HLS_URL: ${NEXT_PUBLIC_HLS_URL:-http://localhost:8080/hls}
       NODE_ENV: ${NODE_ENV:-production}
@@ -70,10 +59,10 @@ services:
 
   # RTMP Server (Nginx-RTMP)
   rtmp:
-    build:
-      context: ./infra/nginx-rtmp
-      dockerfile: Dockerfile
+    image: shuhaibs/gostream-nginx-rtmp:latest
     container_name: gostream-rtmp
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:4000}
     ports:
       - "${RTMP_PORT:-1935}:1935"  # RTMP port
       - "${HLS_PORT:-8080}:8080"   # HLS HTTP port

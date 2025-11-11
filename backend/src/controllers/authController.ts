@@ -3,7 +3,7 @@ import { User } from '@prisma/client';
 import { userRepository } from '../repositories';
 import { generateToken } from '../utils/jwt';
 import { hashPassword, comparePassword, validatePasswordStrength } from '../utils/password';
-import { isValidEmail } from '../utils/validation';
+import { isValidEmail, sanitizeName, validateAndSanitizeEmail } from '../utils/validation';
 import { ValidationError, AuthenticationError, ConflictError } from '../utils/errors';
 import logger from '../utils/logger';
 import config from '../config';
@@ -14,11 +14,11 @@ import config from '../config';
  */
 export const signup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now();
-  
+
   try {
     const { email, password, name } = req.body;
 
-    // Validate input
+    // Validate and sanitize input
     if (!email || !password) {
       throw new ValidationError('Email and password are required');
     }
@@ -27,15 +27,19 @@ export const signup = async (req: Request, res: Response, next: NextFunction): P
       throw new ValidationError('Name is required');
     }
 
-    if (name.trim().length < 2) {
+    // SECURITY: Sanitize name input
+    const sanitizedName = sanitizeName(name);
+    if (sanitizedName.length < 2) {
       throw new ValidationError('Name must be at least 2 characters long');
     }
 
-    if (name.trim().length > 100) {
+    if (sanitizedName.length > 100) {
       throw new ValidationError('Name must not exceed 100 characters');
     }
 
-    if (!isValidEmail(email)) {
+    // SECURITY: Validate and sanitize email
+    const emailValidation = validateAndSanitizeEmail(email);
+    if (!emailValidation.isValid) {
       throw new ValidationError('Invalid email format');
     }
 
@@ -55,10 +59,10 @@ export const signup = async (req: Request, res: Response, next: NextFunction): P
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create user
+    // Create user with sanitized inputs
     const user = await userRepository.create({
-      email,
-      name: name.trim(),
+      email: emailValidation.sanitized,
+      name: sanitizedName,
       passwordHash,
     });
 
@@ -105,27 +109,29 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       throw new ValidationError('Email and password are required');
     }
 
-    if (!isValidEmail(email)) {
+    // SECURITY: Validate and sanitize email
+    const emailValidation = validateAndSanitizeEmail(email);
+    if (!emailValidation.isValid) {
       throw new ValidationError('Invalid email format');
     }
 
     // Find user
-    const user = await userRepository.findByEmail(email);
+    const user = await userRepository.findByEmail(emailValidation.sanitized);
     if (!user) {
-      logger.warn('Login attempt with non-existent email', { email });
+      logger.warn('Login attempt with non-existent email', { email: emailValidation.sanitized });
       throw new AuthenticationError('Invalid credentials');
     }
 
     // Check if user has a password (not OAuth-only user)
     if (!user.passwordHash) {
-      logger.warn('Login attempt for OAuth-only user', { email, userId: user.id });
+      logger.warn('Login attempt for OAuth-only user', { email: emailValidation.sanitized, userId: user.id });
       throw new AuthenticationError('This account uses Google Sign-In. Please sign in with Google.');
     }
 
     // Verify password
     const isValidPassword = await comparePassword(password, user.passwordHash);
     if (!isValidPassword) {
-      logger.warn('Login attempt with incorrect password', { email, userId: user.id });
+      logger.warn('Login attempt with incorrect password', { email: emailValidation.sanitized, userId: user.id });
       throw new AuthenticationError('Invalid credentials');
     }
 
@@ -141,7 +147,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     });
 
     const duration = Date.now() - startTime;
-    logger.info('User login successful', { userId: user.id, email, duration: `${duration}ms` });
+    logger.info('User login successful', { userId: user.id, email: emailValidation.sanitized, duration: `${duration}ms` });
 
     res.json({
       success: true,

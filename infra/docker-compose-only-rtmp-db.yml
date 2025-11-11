@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (for local backend/frontend)
+  postgres:
+    image: postgres:15-alpine
+    container_name: gostream-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gostream}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gostream_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-gostream}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gostream-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gostream} -d ${POSTGRES_DB:-gostream}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # RTMP Server (Nginx-RTMP)
+  # Backend and Frontend run locally, not in Docker
+  nginx-rtmp:
+    build:
+      context: ../nginx-rtmp
+      dockerfile: Dockerfile
+    container_name: gostream-nginx-rtmp
+    environment:
+      # Backend runs locally, use host.docker.internal to reach it
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:4000}
+    ports:
+      - "${RTMP_PORT:-1935}:1935"  # RTMP
+      - "${HLS_PORT:-8080}:8080"   # HLS
+    volumes:
+      - rtmp_hls:/tmp/hls
+    networks:
+      - gostream-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rtmp_hls:
+
+networks:
+  gostream-network:
+    driver: bridge
+
