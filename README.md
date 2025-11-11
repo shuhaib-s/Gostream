@@ -1,6 +1,33 @@
 # GoStream - Multi-Streaming Platform
 
-Stream to multiple platforms (YouTube, Twitch, Facebook) simultaneously from a single source.
+Stream to **multiple destinations simultaneously** from a single source. Support for **10+ platforms** including YouTube, Twitch, Facebook, LinkedIn, TikTok, Instagram, and custom RTMP endpoints.
+
+## 🌟 Key Features
+
+- **🎯 Multi-Destination Streaming**: Stream to unlimited destinations at once
+- **📺 Multiple Platform Accounts**: Broadcast to multiple YouTube channels, Facebook pages, Twitch accounts, etc.
+- **🎮 Individual Controls**: Start/stop streams per destination independently
+- **👁️ Live Preview**: Monitor your stream in real-time with HLS player
+- **🚀 Production Ready**: Enterprise-grade security and scalability foundation
+
+Perfect for **content creators**, **agencies**, **businesses**, and **broadcasters** who need to reach multiple audiences simultaneously.
+
+## 💡 Use Cases
+
+### For Content Creators
+- **Multi-Channel Strategy**: Stream to your main YouTube channel + gaming channel + backup channel
+- **Cross-Platform Presence**: Broadcast to YouTube, Twitch, TikTok, and Instagram simultaneously
+- **Brand Partnerships**: Stream to your channel + brand collaboration channels
+
+### For Agencies & Businesses
+- **Client Campaigns**: Stream to multiple client YouTube channels at once
+- **Multi-Location Events**: Broadcast corporate events to several Facebook pages
+- **Training Sessions**: Deliver webinars to multiple LinkedIn groups simultaneously
+
+### For Broadcasters
+- **Redundancy**: Stream to primary + backup destinations
+- **Global Reach**: Broadcast to regional YouTube channels worldwide
+- **Platform Migration**: Test streaming to new platforms while maintaining current audience
 
 ## 🚀 Quick Start (Local Development)
 
@@ -100,11 +127,21 @@ Click "Start Streaming" in OBS
 - Wait 10-15 seconds
 - Stream preview appears
 
-### 5. Add Destinations
-- Click "+ Add Destination"
-- Select platform (YouTube, Twitch, Facebook, Custom)
-- Enter RTMP URL and Stream Key
-- Save destination
+### 5. Add Multiple Destinations
+- Click "+ Add Destination" multiple times
+- Select platform (YouTube, Twitch, Facebook, LinkedIn, TikTok, Instagram, etc.)
+- Enter RTMP URL and Stream Key for each destination
+- **Stream to multiple accounts of the same platform simultaneously**
+  - Multiple YouTube channels
+  - Multiple Facebook pages/groups
+  - Multiple Twitch accounts
+- Save all destinations
+
+### 6. Multi-Stream Control
+- **"Start All Streams"** button to broadcast to all destinations at once
+- **Individual controls** to start/stop specific destinations
+- **Real-time status** for each destination
+- **Stream preview** to monitor your broadcast
 
 ---
 
@@ -122,8 +159,9 @@ gostream/
 - **Backend**: Node.js, Express, TypeScript, Prisma ORM
 - **Frontend**: Next.js 14, React, TailwindCSS
 - **Database**: PostgreSQL 15
-- **Streaming**: Nginx-RTMP, HLS
-- **Auth**: JWT + bcrypt
+- **Streaming**: Nginx-RTMP (ingestion), FFmpeg (multi-destination relay), HLS (preview)
+- **Auth**: JWT + bcrypt, Google OAuth
+- **Multi-Streaming**: FFmpeg process management for simultaneous broadcasting
 
 ---
 
@@ -143,6 +181,12 @@ gostream/
 - `POST /api/projects/:projectId/destinations` - Add destination
 - `PUT /api/projects/destinations/:id` - Update destination
 - `DELETE /api/projects/destinations/:id` - Delete destination
+
+### Multi-Streaming
+- `POST /api/destinations/:id/relay/start` - Start stream to destination
+- `POST /api/destinations/:id/relay/stop` - Stop stream to destination
+- `GET /api/destinations/:id/relay/status` - Get relay status
+- `GET /api/relays` - Get all active relays
 
 ---
 
@@ -204,6 +248,13 @@ Verify DATABASE_URL in `backend/.env`
 - Wait 10-15 seconds (HLS needs time)
 - Refresh the page
 - Check OBS is streaming (green indicator)
+
+### Multi-streaming issues
+
+- **Individual destinations not starting**: Check RTMP URL and stream key for each destination
+- **Some platforms work, others don't**: Verify platform-specific RTMP URLs and authentication
+- **High resource usage**: Each active stream uses ~50-100MB RAM - monitor system resources
+- **Stream delays**: Different platforms may have 10-30 second delays for stream processing
 
 ---
 
@@ -271,22 +322,32 @@ Images are available on Docker Hub as:
 
 ---
 
-## 🎯 Phase 1 Complete
+## 🎯 Current Features
 
-✅ User authentication  
-✅ Project management  
-✅ RTMP ingestion  
-✅ HLS preview  
-✅ Destination management  
-✅ Modern UI  
+### ✅ Core Features (Phase 1)
+- User authentication (email/password + Google OAuth)
+- Project management with unique stream keys
+- RTMP ingestion from OBS/Streamlabs
+- HLS preview with real-time streaming
+- Modern responsive UI with Tailwind CSS
 
-## 🚧 Phase 2 (Coming)
+### ✅ Multi-Streaming Features (Phase 2 - Complete)
+- **Multi-destination streaming** to 10+ platforms simultaneously
+- **FFmpeg relay** to multiple destinations (YouTube, Twitch, Facebook, etc.)
+- **Individual start/stop controls** per destination
+- **Platform support**: YouTube, Twitch, Facebook, LinkedIn, TikTok, Instagram, Kick, Rumble, Trovo, Custom RTMP
+- **Multiple accounts per platform** (e.g., 3 YouTube channels, 2 Facebook pages)
+- **Real-time stream status** monitoring
+- **Stream preview** with HLS player
 
-- [ ] FFmpeg relay to multiple destinations
-- [ ] Start/Stop controls per destination
-- [ ] Stream analytics
-- [ ] Recording to storage
-- [ ] Multi-bitrate streaming
+## 🚧 Future Enhancements (Phase 3)
+
+- [ ] Stream analytics and viewer metrics
+- [ ] Cloud recording and storage
+- [ ] Multi-bitrate adaptive streaming
+- [ ] Stream scheduling and automation
+- [ ] Team collaboration features
+- [ ] API integrations for external tools
 
 ---
 

@@ -32,8 +32,8 @@ jobs:
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
           - name: nginx-rtmp
-            context: ./infra/nginx-rtmp
-            dockerfile: ./infra/nginx-rtmp/Dockerfile
+            context: ./nginx-rtmp
+            dockerfile: .
     
     steps:
       - name: Checkout code
