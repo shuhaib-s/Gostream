@@ -33,7 +33,7 @@ jobs:
             dockerfile: ./frontend/Dockerfile
           - name: nginx-rtmp
             context: ./nginx-rtmp
-            dockerfile: .
+            dockerfile: ./nginx-rtmp/Dockerfile
     
     steps:
       - name: Checkout code
